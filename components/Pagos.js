@@ -1,21 +1,22 @@
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 const PagosModule = () => {
-  const [socios, setSocios] = useState([
+  const [socios] = useState([
     { id: 1, nombreCompleto: 'Juan Pérez', cedula: '12345678' },
     { id: 2, nombreCompleto: 'Ana Gómez', cedula: '87654321' },
   ]);
 
-  const [cuotas, setCuotas] = useState([
-    { socioId: 1, monto: 50, fechaVencimiento: '2024-07-15' },
-    { socioId: 2, monto: 50, fechaVencimiento: '2024-07-15' },
-    { socioId: 1, monto: 50, fechaVencimiento: '2024-08-15' },
+  const [cuotas] = useState([
+    { id: 1, socioId: 1, monto: 50, fechaVencimiento: '2024-07-15', numeroCuota: 1, totalCuotas: 12, capital: 40, interes: 10 },
+    { id: 2, socioId: 2, monto: 50, fechaVencimiento: '2024-07-15', numeroCuota: 1, totalCuotas: 12, capital: 40, interes: 10 },
+    { id: 3, socioId: 1, monto: 50, fechaVencimiento: '2024-08-15', numeroCuota: 2, totalCuotas: 12, capital: 40, interes: 10 },
   ]);
 
   const [mesSeleccionado, setMesSeleccionado] = useState('');
   const [anioSeleccionado, setAnioSeleccionado] = useState('');
   const [cuotasPorCobrar, setCuotasPorCobrar] = useState([]);
+  const [selectedCuotas, setSelectedCuotas] = useState([]);
 
   const handleBuscarCuotas = () => {
     if (!mesSeleccionado || !anioSeleccionado) {
@@ -32,12 +33,36 @@ const PagosModule = () => {
     });
 
     setCuotasPorCobrar(cuotasFiltradas);
+    setSelectedCuotas([]); // Reset selection
   };
 
   const getNombreSocio = (socioId) => {
     const socio = socios.find(s => s.id === socioId);
     return socio ? socio.nombreCompleto : 'Desconocido';
   };
+
+  const handleSelectCuota = (cuotaId) => {
+    setSelectedCuotas(prev =>
+      prev.includes(cuotaId) ? prev.filter(id => id !== cuotaId) : [...prev, cuotaId]
+    );
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedCuotas(cuotasPorCobrar.map(c => c.id));
+    } else {
+      setSelectedCuotas([]);
+    }
+  };
+
+  const totals = useMemo(() => {
+    return cuotasPorCobrar.reduce((acc, cuota) => {
+      acc.monto += cuota.monto;
+      acc.capital += cuota.capital;
+      acc.interes += cuota.interes;
+      return acc;
+    }, { monto: 0, capital: 0, interes: 0 });
+  }, [cuotasPorCobrar]);
 
   return (
     <div className="container mx-auto p-4">
@@ -52,18 +77,9 @@ const PagosModule = () => {
             className="border p-2 rounded w-full"
           >
             <option value="">Seleccione un Mes</option>
-            <option value="1">Enero</option>
-            <option value="2">Febrero</option>
-            <option value="3">Marzo</option>
-            <option value="4">Abril</option>
-            <option value="5">Mayo</option>
-            <option value="6">Junio</option>
-            <option value="7">Julio</option>
-            <option value="8">Agosto</option>
-            <option value="9">Septiembre</option>
-            <option value="10">Octubre</option>
-            <option value="11">Noviembre</option>
-            <option value="12">Diciembre</option>
+            {[...Array(12).keys()].map(i => (
+              <option key={i + 1} value={i + 1}>{new Date(0, i).toLocaleString('es', { month: 'long' })}</option>
+            ))}
           </select>
           <input
             type="number"
@@ -85,20 +101,40 @@ const PagosModule = () => {
             <table className="min-w-full bg-white border">
               <thead className="bg-gray-200">
                 <tr>
+                  <th className="py-2 px-4 border-b">
+                    <input type="checkbox" onChange={handleSelectAll} checked={selectedCuotas.length === cuotasPorCobrar.length && cuotasPorCobrar.length > 0} />
+                  </th>
                   <th className="py-2 px-4 border-b">Socio</th>
-                  <th className="py-2 px-4 border-b">Monto</th>
-                  <th className="py-2 px-4 border-b">Fecha de Vencimiento</th>
+                  <th className="py-2 px-4 border-b">N° Cuota</th>
+                  <th className="py-2 px-4 border-b">Fecha Vencimiento</th>
+                  <th className="py-2 px-4 border-b">Total Pagado</th>
+                  <th className="py-2 px-4 border-b">Capital</th>
+                  <th className="py-2 px-4 border-b">Interés</th>
                 </tr>
               </thead>
               <tbody>
-                {cuotasPorCobrar.map((cuota, index) => (
-                  <tr key={index} className="hover:bg-gray-100">
+                {cuotasPorCobrar.map((cuota) => (
+                  <tr key={cuota.id} className="hover:bg-gray-100">
+                    <td className="py-2 px-4 border-b">
+                      <input type="checkbox" checked={selectedCuotas.includes(cuota.id)} onChange={() => handleSelectCuota(cuota.id)} />
+                    </td>
                     <td className="py-2 px-4 border-b">{getNombreSocio(cuota.socioId)}</td>
-                    <td className="py-2 px-4 border-b">${cuota.monto}</td>
+                    <td className="py-2 px-4 border-b">{`${cuota.numeroCuota}/${cuota.totalCuotas}`}</td>
                     <td className="py-2 px-4 border-b">{cuota.fechaVencimiento}</td>
+                    <td className="py-2 px-4 border-b">${cuota.monto.toFixed(2)}</td>
+                    <td className="py-2 px-4 border-b">${cuota.capital.toFixed(2)}</td>
+                    <td className="py-2 px-4 border-b">${cuota.interes.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
+              <tfoot className="bg-gray-300">
+                <tr>
+                  <td colSpan="4" className="py-2 px-4 border-b text-right font-bold text-lg">Totales:</td>
+                  <td className="py-2 px-4 border-b font-bold text-lg">${totals.monto.toFixed(2)}</td>
+                  <td className="py-2 px-4 border-b font-bold text-lg">${totals.capital.toFixed(2)}</td>
+                  <td className="py-2 px-4 border-b font-bold text-lg">${totals.interes.toFixed(2)}</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}
