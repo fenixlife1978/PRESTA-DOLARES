@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import SociosModule from '../components/Socios';
+import PagosModule from '../components/Pagos'; // Import PagosModule
 
 const AdminDashboard = () => {
   const [activeModule, setActiveModule] = useState('socios');
@@ -12,7 +13,7 @@ const AdminDashboard = () => {
       case 'prestamos':
         return <div>Prestamos Module</div>;
       case 'pagos':
-        return <div>Pagos Module</div>;
+        return <PagosModule />;
       case 'consultas':
         return <div>Consultas Module</div>;
       case 'configuraciones':
