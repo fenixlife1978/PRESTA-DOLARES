@@ -1,7 +1,9 @@
 
 import { useState } from 'react';
 import SociosModule from '../components/Socios';
-import PagosModule from '../components/Pagos'; // Import PagosModule
+import PagosModule from '../components/Pagos';
+import PrestamosModule from '../components/Prestamos'; // Import PrestamosModule
+import ConsultasModule from '../components/Consultas'; // Import ConsultasModule
 
 const AdminDashboard = () => {
   const [activeModule, setActiveModule] = useState('socios');
@@ -11,11 +13,11 @@ const AdminDashboard = () => {
       case 'socios':
         return <SociosModule />;
       case 'prestamos':
-        return <div>Prestamos Module</div>;
+        return <PrestamosModule />;
       case 'pagos':
         return <PagosModule />;
       case 'consultas':
-        return <div>Consultas Module</div>;
+        return <ConsultasModule />;
       case 'configuraciones':
         return <div>Configuraciones Module</div>;
       default:
