@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import SociosModule from '../components/Socios';
 import PagosModule from '../components/Pagos';
-import PrestamosModule from '../components/Prestamos'; // Import PrestamosModule
-import ConsultasModule from '../components/Consultas'; // Import ConsultasModule
+import PrestamosModule from '../components/Prestamos';
+import ConsultasModule from '../components/Consultas';
+import ConfiguracionesModule from '../components/Configuraciones'; // Import ConfiguracionesModule
 
 const AdminDashboard = () => {
   const [activeModule, setActiveModule] = useState('socios');
@@ -19,7 +20,7 @@ const AdminDashboard = () => {
       case 'consultas':
         return <ConsultasModule />;
       case 'configuraciones':
-        return <div>Configuraciones Module</div>;
+        return <ConfiguracionesModule />;
       default:
         return <SociosModule />;
     }
@@ -50,7 +51,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 p-10">
+      <div className="flex-1 p-10 overflow-y-auto">
         {renderModule()}
       </div>
     </div>
