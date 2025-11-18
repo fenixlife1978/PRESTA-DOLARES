@@ -4,7 +4,7 @@ import { read, utils } from 'xlsx';
 
 const SociosModule = () => {
   const [socios, setSocios] = useState([]);
-  const [socio, setSocio] = useState({ nombre: '', apellido: '', cedula: '' });
+  const [socio, setSocio] = useState({ nombreCompleto: '', cedula: '' });
   const [editIndex, setEditIndex] = useState(-1);
   const [showForm, setShowForm] = useState(false); // Estado para controlar la visibilidad del formulario
 
@@ -22,7 +22,7 @@ const SociosModule = () => {
     } else {
       setSocios([...socios, socio]);
     }
-    setSocio({ nombre: '', apellido: '', cedula: '' });
+    setSocio({ nombreCompleto: '', cedula: '' });
     setShowForm(false); // Ocultar el formulario después de agregar/modificar
   };
 
@@ -51,8 +51,7 @@ const SociosModule = () => {
       const worksheet = workbook.Sheets[sheetName];
       const json = utils.sheet_to_json(worksheet);
       const newSocios = json.map(item => ({
-        nombre: item.nombre,
-        apellido: item.apellido,
+        nombreCompleto: `${item.nombre} ${item.apellido}`,
         cedula: item.cedula,
       }));
       setSocios([...socios, ...newSocios]);
@@ -76,20 +75,12 @@ const SociosModule = () => {
       {showForm && (
         <div className="mb-4 p-4 border rounded shadow-sm">
           <h3 className="text-xl font-semibold mb-2">{editIndex > -1 ? 'Modificar Socio' : 'Agregar Socio'}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <input
               type="text"
-              name="nombre"
-              placeholder="Nombre"
-              value={socio.nombre}
-              onChange={handleInputChange}
-              className="border p-2 rounded w-full"
-            />
-            <input
-              type="text"
-              name="apellido"
-              placeholder="Apellido"
-              value={socio.apellido}
+              name="nombreCompleto"
+              placeholder="Nombre y Apellido"
+              value={socio.nombreCompleto}
               onChange={handleInputChange}
               className="border p-2 rounded w-full"
             />
@@ -136,8 +127,7 @@ const SociosModule = () => {
         <table className="min-w-full bg-white border">
           <thead className="bg-gray-200">
             <tr>
-              <th className="py-2 px-4 border-b">Nombre</th>
-              <th className="py-2 px-4 border-b">Apellido</th>
+              <th className="py-2 px-4 border-b">Nombre y Apellido</th>
               <th className="py-2 px-4 border-b">Cédula</th>
               <th className="py-2 px-4 border-b">Acciones</th>
             </tr>
@@ -145,8 +135,7 @@ const SociosModule = () => {
           <tbody>
             {socios.map((s, index) => (
               <tr key={index} className="hover:bg-gray-100">
-                <td className="py-2 px-4 border-b">{s.nombre}</td>
-                <td className="py-2 px-4 border-b">{s.apellido}</td>
+                <td className="py-2 px-4 border-b">{s.nombreCompleto}</td>
                 <td className="py-2 px-4 border-b">{s.cedula}</td>
                 <td className="py-2 px-4 border-b">
                   <button
