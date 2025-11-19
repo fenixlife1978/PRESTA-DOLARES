@@ -1,141 +1,173 @@
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 const PagosModule = () => {
-  const [socios] = useState([
-    { id: 1, nombreCompleto: 'Juan Pérez', cedula: '12345678' },
-    { id: 2, nombreCompleto: 'Ana Gómez', cedula: '87654321' },
-  ]);
+  // Estados para la búsqueda y selección de préstamos
+  const [prestamos, setPrestamos] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedPrestamo, setSelectedPrestamo] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
 
-  const [cuotas] = useState([
-    { id: 1, socioId: 1, monto: 50, fechaVencimiento: '2024-07-15', numeroCuota: 1, totalCuotas: 12, capital: 40, interes: 10 },
-    { id: 2, socioId: 2, monto: 50, fechaVencimiento: '2024-07-15', numeroCuota: 1, totalCuotas: 12, capital: 40, interes: 10 },
-    { id: 3, socioId: 1, monto: 50, fechaVencimiento: '2024-08-15', numeroCuota: 2, totalCuotas: 12, capital: 40, interes: 10 },
-  ]);
+  // Estados para el formulario de pago
+  const [pago, setPago] = useState({ monto: '', fecha: new Date().toISOString().split('T')[0] });
 
-  const [mesSeleccionado, setMesSeleccionado] = useState('');
-  const [anioSeleccionado, setAnioSeleccionado] = useState('');
-  const [cuotasPorCobrar, setCuotasPorCobrar] = useState([]);
-  const [selectedCuotas, setSelectedCuotas] = useState([]);
+  // Estados para la carga, errores y éxito
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState('');
 
-  const handleBuscarCuotas = () => {
-    if (!mesSeleccionado || !anioSeleccionado) {
-      alert('Por favor, seleccione un mes y un año.');
+  // Cargar todos los préstamos activos
+  const fetchPrestamos = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/prestamos');
+      if (!res.ok) throw new Error('No se pudo obtener la lista de préstamos');
+      const data = await res.json();
+      // Filtrar solo los préstamos activos
+      const activos = data.filter(p => p.estado === 'activo');
+      setPrestamos(activos);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPrestamos();
+  }, []);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setSelectedPrestamo(null);
+    setIsSearching(true);
+    setError(null);
+    setSuccess('');
+  };
+
+  const selectPrestamo = (prestamo) => {
+    setSelectedPrestamo(prestamo);
+    setSearchTerm(`${prestamo.socioNombre} - Préstamo de $${prestamo.monto}`);
+    setIsSearching(false);
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setPago(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmitPago = async (e) => {
+    e.preventDefault();
+    if (!selectedPrestamo || !pago.monto) {
+      setError('Seleccione un préstamo y ingrese un monto a pagar.');
       return;
     }
 
-    const cuotasFiltradas = cuotas.filter(cuota => {
-      const fecha = new Date(cuota.fechaVencimiento);
-      return (
-        fecha.getMonth() + 1 === parseInt(mesSeleccionado) &&
-        fecha.getFullYear() === parseInt(anioSeleccionado)
-      );
-    });
+    setLoading(true);
+    setError(null);
+    setSuccess('');
 
-    setCuotasPorCobrar(cuotasFiltradas);
-    setSelectedCuotas([]); // Reset selection
-  };
+    try {
+      const res = await fetch('/api/pagos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prestamoId: selectedPrestamo.id, ...pago }),
+      });
 
-  const getNombreSocio = (socioId) => {
-    const socio = socios.find(s => s.id === socioId);
-    return socio ? socio.nombreCompleto : 'Desconocido';
-  };
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'No se pudo registrar el pago');
+      }
 
-  const handleSelectCuota = (cuotaId) => {
-    setSelectedCuotas(prev =>
-      prev.includes(cuotaId) ? prev.filter(id => id !== cuotaId) : [...prev, cuotaId]
-    );
-  };
+      const { nuevoSaldo } = await res.json();
 
-  const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedCuotas(cuotasPorCobrar.map(c => c.id));
-    } else {
-      setSelectedCuotas([]);
+      setSuccess(`¡Pago registrado con éxito! Nuevo saldo pendiente: $${nuevoSaldo.toFixed(2)}`);
+      
+      // Actualizar el estado del préstamo en la UI
+      setSelectedPrestamo(prev => ({...prev, saldoPendiente: nuevoSaldo, estado: nuevoSaldo <= 0 ? 'pagado' : 'activo'}));
+      setPago({ monto: '', fecha: new Date().toISOString().split('T')[0] });
+
+      // Si el préstamo está pagado, refrescar la lista para que desaparezca de "activos"
+      if (nuevoSaldo <= 0) {
+        setSearchTerm('');
+        setSelectedPrestamo(null);
+        fetchPrestamos();
+      }
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const totals = useMemo(() => {
-    return cuotasPorCobrar.reduce((acc, cuota) => {
-      acc.monto += cuota.monto;
-      acc.capital += cuota.capital;
-      acc.interes += cuota.interes;
-      return acc;
-    }, { monto: 0, capital: 0, interes: 0 });
-  }, [cuotasPorCobrar]);
+  const filteredPrestamos = searchTerm
+    ? prestamos.filter(p => 
+        p.socioNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.socioId && p.socioId.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    : [];
 
   return (
     <div className="container mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-4">Gestión de Pagos</h2>
+      <h2 className="text-2xl font-bold mb-4">Registro de Pagos a Préstamos</h2>
 
-      <div className="mb-4 p-4 border rounded shadow-sm">
-        <h3 className="text-xl font-semibold mb-2">Cuotas por Cobrar</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <select
-            value={mesSeleccionado}
-            onChange={(e) => setMesSeleccionado(e.target.value)}
-            className="border p-2 rounded w-full"
-          >
-            <option value="">Seleccione un Mes</option>
-            {[...Array(12).keys()].map(i => (
-              <option key={i + 1} value={i + 1}>{new Date(0, i).toLocaleString('es', { month: 'long' })}</option>
-            ))}
-          </select>
+      {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">Error: {error}</p>}
+      {success && <p className="text-green-500 bg-green-100 p-3 rounded mb-4">{success}</p>}
+
+      <div className="p-4 border rounded shadow-sm bg-white">
+        {/* Paso 1: Buscar y seleccionar el préstamo */}
+        <div className="relative mb-6">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="prestamo-search">
+            1. Buscar Préstamo Activo (por nombre de socio)
+          </label>
           <input
-            type="number"
-            placeholder="Año"
-            value={anioSeleccionado}
-            onChange={(e) => setAnioSeleccionado(e.target.value)}
-            className="border p-2 rounded w-full"
+            id="prestamo-search"
+            type="text"
+            value={searchTerm}
+            onChange={handleSearchChange}
+            placeholder="Empezar a escribir para buscar..."
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            autoComplete="off"
+            disabled={loading}
           />
-          <button
-            onClick={handleBuscarCuotas}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-          >
-            Buscar
-          </button>
+          {isSearching && filteredPrestamos.length > 0 && (
+            <ul className="absolute border bg-white w-full mt-1 rounded-md shadow-lg z-10">
+              {filteredPrestamos.map(p => (
+                <li key={p.id} onClick={() => selectPrestamo(p)} className="p-3 hover:bg-gray-200 cursor-pointer">
+                  {p.socioNombre} (Préstamo: ${p.monto}, Saldo: ${p.saldoPendiente?.toFixed(2) ?? p.monto.toFixed(2)})
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        {cuotasPorCobrar.length > 0 && (
-          <div className="overflow-x-auto mt-4">
-            <table className="min-w-full bg-white border">
-              <thead className="bg-gray-200">
-                <tr>
-                  <th className="py-2 px-4 border-b">
-                    <input type="checkbox" onChange={handleSelectAll} checked={selectedCuotas.length === cuotasPorCobrar.length && cuotasPorCobrar.length > 0} />
-                  </th>
-                  <th className="py-2 px-4 border-b">Socio</th>
-                  <th className="py-2 px-4 border-b">N° Cuota</th>
-                  <th className="py-2 px-4 border-b">Fecha Vencimiento</th>
-                  <th className="py-2 px-4 border-b">Total Pagado</th>
-                  <th className="py-2 px-4 border-b">Capital</th>
-                  <th className="py-2 px-4 border-b">Interés</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cuotasPorCobrar.map((cuota) => (
-                  <tr key={cuota.id} className="hover:bg-gray-100">
-                    <td className="py-2 px-4 border-b">
-                      <input type="checkbox" checked={selectedCuotas.includes(cuota.id)} onChange={() => handleSelectCuota(cuota.id)} />
-                    </td>
-                    <td className="py-2 px-4 border-b">{getNombreSocio(cuota.socioId)}</td>
-                    <td className="py-2 px-4 border-b">{`${cuota.numeroCuota}/${cuota.totalCuotas}`}</td>
-                    <td className="py-2 px-4 border-b">{cuota.fechaVencimiento}</td>
-                    <td className="py-2 px-4 border-b">${cuota.monto.toFixed(2)}</td>
-                    <td className="py-2 px-4 border-b">${cuota.capital.toFixed(2)}</td>
-                    <td className="py-2 px-4 border-b">${cuota.interes.toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="bg-gray-300">
-                <tr>
-                  <td colSpan="4" className="py-2 px-4 border-b text-right font-bold text-lg">Totales:</td>
-                  <td className="py-2 px-4 border-b font-bold text-lg">${totals.monto.toFixed(2)}</td>
-                  <td className="py-2 px-4 border-b font-bold text-lg">${totals.capital.toFixed(2)}</td>
-                  <td className="py-2 px-4 border-b font-bold text-lg">${totals.interes.toFixed(2)}</td>
-                </tr>
-              </tfoot>
-            </table>
+        {/* Paso 2: Registrar el pago si hay un préstamo seleccionado */}
+        {selectedPrestamo && (
+          <div>
+             <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="font-bold text-blue-800">Detalles del Préstamo</h4>
+                <p><strong>Socio:</strong> {selectedPrestamo.socioNombre}</p>
+                <p><strong>Monto Original:</strong> ${selectedPrestamo.monto.toFixed(2)}</p>
+                <p className="text-lg"><strong>Saldo Pendiente:</strong> <span className="font-mono text-red-600">${(selectedPrestamo.saldoPendiente ?? selectedPrestamo.monto).toFixed(2)}</span></p>
+            </div>
+
+            <form onSubmit={handleSubmitPago} className="space-y-4">
+                <h3 className="text-xl font-semibold mb-2">2. Registrar Nuevo Pago</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="monto" className="block text-sm font-medium text-gray-700">Monto a Pagar</label>
+                        <input type="number" name="monto" id="monto" value={pago.monto} onChange={handleInputChange} placeholder="0.00" className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
+                    </div>
+                    <div>
+                        <label htmlFor="fecha" className="block text-sm font-medium text-gray-700">Fecha del Pago</label>
+                        <input type="date" name="fecha" id="fecha" value={pago.fecha} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
+                    </div>
+                </div>
+                <button type="submit" disabled={loading} className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:bg-green-300">
+                    {loading ? 'Registrando Pago...' : 'Confirmar Pago'}
+                </button>
+            </form>
           </div>
         )}
       </div>
