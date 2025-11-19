@@ -4,7 +4,8 @@ import SociosModule from '../components/Socios';
 import PagosModule from '../components/Pagos';
 import PrestamosModule from '../components/Prestamos';
 import ConsultasModule from '../components/Consultas';
-import ConfiguracionesModule from '../components/Configuraciones'; // Import ConfiguracionesModule
+import ConfiguracionesModule from '../components/Configuraciones';
+import withAuth from '../components/withAuth'; // Importa el HOC withAuth
 
 const AdminDashboard = () => {
   const [activeModule, setActiveModule] = useState('socios');
@@ -58,4 +59,5 @@ const AdminDashboard = () => {
   );
 };
 
-export default AdminDashboard;
+// Envuelve el componente AdminDashboard con el HOC withAuth
+export default withAuth(AdminDashboard);

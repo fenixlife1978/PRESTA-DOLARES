@@ -1,30 +1,30 @@
 
 import { useState, useEffect } from 'react';
 
+// Define the StatCard component with a Starbucks theme
 const StatCard = ({ title, value, icon, color }) => {
+    // Starbucks color palette
     const colorClasses = {
-        green: 'from-green-500 to-green-600',
-        blue: 'from-blue-500 to-blue-600',
-        purple: 'from-purple-500 to-purple-600',
-        red: 'from-red-500 to-red-600',
-        yellow: 'from-yellow-500 to-yellow-600',
-        indigo: 'from-indigo-500 to-indigo-600',
+        green: 'bg-green-700',
+        lightGreen: 'bg-green-600',
+        cream: 'bg-cream-500',
+        dark: 'bg-gray-800',
     };
 
     return (
-        <div className={`bg-gradient-to-br ${colorClasses[color]} text-white p-6 rounded-xl shadow-lg flex items-center justify-between`}>
+        <div className={`${colorClasses[color]} text-white p-6 rounded-lg shadow-md flex items-center justify-between`}>
             <div>
-                <p className="text-sm font-semibold uppercase tracking-wider">{title}</p>
-                <p className="text-3xl font-bold">{value}</p>
+                <p className="text-lg font-semibold uppercase tracking-wider">{title}</p>
+                <p className="text-4xl font-bold">{value}</p>
             </div>
-            <div className="text-4xl opacity-80">
+            <div className="text-5xl opacity-90">
                 {icon}
             </div>
         </div>
     );
 };
 
-
+// Main Dashboard component
 export default function Dashboard() {
     const [stats, setStats] = useState(null);
     const [error, setError] = useState(null);
@@ -47,72 +47,76 @@ export default function Dashboard() {
         fetchStats();
     }, []);
 
+    // Function to format currency
     const formatCurrency = (amount) => {
         return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
 
     if (isLoading) {
-        return <div className="flex justify-center items-center min-h-screen"><p>Cargando dashboard...</p></div>;
+        return <div className="flex justify-center items-center min-h-screen bg-gray-100"><p className="text-green-700">Cargando Dashboard...</p></div>;
     }
 
     if (error) {
-        return <div className="flex justify-center items-center min-h-screen"><p className='text-red-500'>{`Error: ${error}`}</p></div>;
+        return <div className="flex justify-center items-center min-h-screen bg-gray-100"><p className='text-red-600'>{`Error: ${error}`}</p></div>;
     }
 
     return (
-        <div className="bg-gray-50 min-h-screen">
+        <div className="bg-gray-100 min-h-screen font-sans">
             <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-                <h1 className="text-4xl font-bold text-gray-800 mb-8">Dashboard Financiero</h1>
+                <header className="text-center mb-10">
+                    <h1 className="text-5xl font-extrabold text-green-800">Dashboard Financiero</h1>
+                    <p className="text-lg text-gray-600 mt-2">Tema Starbucks</p>
+                </header>
                 
                 {stats && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Métricas Principales */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {/* Main Metrics */}
                         <StatCard 
                             title="Total Prestado" 
                             value={formatCurrency(stats.totalPrestado)} 
-                            icon={'💸'} 
-                            color="blue" 
+                            icon={'☕'} 
+                            color="green" 
                         />
                         <StatCard 
                             title="Total Recuperado" 
                             value={formatCurrency(stats.totalRecuperado)} 
-                            icon={'💰'} 
-                            color="green" 
+                            icon={'💵'} 
+                            color="lightGreen" 
                         />
                         <StatCard 
                             title="Saldo en Calle" 
                             value={formatCurrency(stats.totalPrestado - stats.capitalRecuperado)} 
-                            icon={' STREET '} 
-                            color="yellow" 
+                            icon={'🚚'} 
+                            color="dark" 
                         />
 
-                        {/* Desglose de Recuperación */}
-                        <StatCard 
+                        {/* Recovery Breakdown */}
+                        <StatCard d
                             title="Capital Recuperado" 
                             value={formatCurrency(stats.capitalRecuperado)} 
                             icon={'🏦'} 
-                            color="indigo" 
+                            color="green" 
                         />
                         <StatCard 
                             title="Interés Ganado" 
                             value={formatCurrency(stats.interesGanado)} 
                             icon={'📈'} 
-                            color="purple" 
+                            color="lightGreen" dg
                         />
-                        <div></div>{/* Placeholder */}
+                        <div /> 
 
-                        {/* Métricas de Entidad */}
+                        {/* Entity Metrics */}
                         <StatCard 
                             title="Número de Socios" 
                             value={stats.numeroSocios}
                             icon={'👥'}
-                            color="red"
+                            color="dark"
                         />
                          <StatCard 
                             title="Número de Préstamos" 
                             value={stats.numeroPrestamos}
-                            icon={'📄'}
-                            color="red"
+                            icon={'📋'}
+                            color="dark"
                         />
                     </div>
                 )}

@@ -1,7 +1,7 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
-// --- Componente del Modal de Pagos (con lógica de estado) --- 
+// --- Componente del Modal de Pagos (sin cambios) --- 
 const PagosModal = ({ prestamo, onClose, onPaymentSuccess }) => {
     const [pagos, setPagos] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -17,7 +17,8 @@ const PagosModal = ({ prestamo, onClose, onPaymentSuccess }) => {
         if (!prestamo) return;
         setIsLoading(true);
         try {
-            const res = await fetch(`/api/prestamos/${prestamo.id}/pagos`);
+            // **NOTA: Este endpoint aún no se ha creado.**
+            const res = await fetch(`/api/pagos?prestamoId=${prestamo.id}`);
             if (!res.ok) throw new Error('Error al cargar los pagos.');
             const data = await res.json();
             setPagos(data);
@@ -49,10 +50,17 @@ const PagosModal = ({ prestamo, onClose, onPaymentSuccess }) => {
             else if (formState.capital && !formState.interes) interes = montoPago - capital;
             else if (!formState.capital && formState.interes) capital = montoPago - interes;
 
-            const response = await fetch(`/api/prestamos/${prestamo.id}/pagos`, {
+            const response = await fetch(`/api/pagos`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ monto: montoPago, fechaPago: formState.fechaPago, capital, interes }),
+                body: JSON.stringify({ 
+                    monto: montoPago, 
+                    fechaPago: formState.fechaPago, 
+                    capital, 
+                    interes, 
+                    socioId: prestamo.socioId, 
+                    prestamoId: prestamo.id 
+                }),
             });
             if (!response.ok) {
                 const errData = await response.json();
@@ -78,7 +86,7 @@ const PagosModal = ({ prestamo, onClose, onPaymentSuccess }) => {
                     <div>
                         <h3 className="text-2xl font-bold text-gray-800 mb-2">Gestión de Pagos</h3>
                         <p className='mb-1'><strong>Socio:</strong> {prestamo.socio.nombreCompleto}</p>
-                        <p><strong>Préstamo:</strong> ${prestamo.monto.toLocaleString('en-US')} <span className={`ml-2 px-3 py-1 text-xs font-bold rounded-full ${prestamo.estado === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>{prestamo.estado}</span></p>
+                        <p><strong>Préstamo:</strong> ${prestamo.monto.toLocaleString('es-CO')} <span className={`ml-2 px-3 py-1 text-xs font-bold rounded-full ${prestamo.estado === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>{prestamo.estado}</span></p>
                     </div>
                      <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
                 </div>
@@ -89,7 +97,6 @@ const PagosModal = ({ prestamo, onClose, onPaymentSuccess }) => {
                         {prestamo.estado === 'Pagado' ? (
                             <div className='text-center p-10 bg-gray-100 rounded-lg'>
                                 <p className='font-bold text-lg text-green-700'>Este préstamo ya ha sido saldado.</p>
-                                <p className='text-gray-600'>No se pueden registrar nuevos pagos.</p>
                             </div>
                         ) : (
                             <form onSubmit={handleSubmit} className="space-y-4">
@@ -110,11 +117,11 @@ const PagosModal = ({ prestamo, onClose, onPaymentSuccess }) => {
                          <div className='grid grid-cols-2 gap-4 mb-4 text-center'>
                             <div className='bg-blue-100 p-3 rounded-lg'>
                                 <p className='text-sm text-blue-800'>Capital Pagado</p>
-                                <p className='text-xl font-bold text-blue-900'>${totalCapitalPagado.toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+                                <p className='text-xl font-bold text-blue-900'>${totalCapitalPagado.toLocaleString('es-CO', {minimumFractionDigits: 2})}</p>
                             </div>
                             <div className='bg-red-100 p-3 rounded-lg'>
                                 <p className='text-sm text-red-800'>Saldo de Capital</p>
-                                <p className='text-xl font-bold text-red-900'>${saldoCapital.toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+                                <p className='text-xl font-bold text-red-900'>${saldoCapital.toLocaleString('es-CO', {minimumFractionDigits: 2})}</p>
                             </div>
                         </div>
                         {isLoading ? <p>Cargando pagos...</p> : (
@@ -123,7 +130,7 @@ const PagosModal = ({ prestamo, onClose, onPaymentSuccess }) => {
                                 {pagos.map(pago => (
                                     <li key={pago.id} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
                                         <div>
-                                            <p className="font-semibold">${pago.monto.toLocaleString('en-US', {minimumFractionDigits: 2})}</p>
+                                            <p className="font-semibold">${pago.monto.toLocaleString('es-CO', {minimumFractionDigits: 2})}</p>
                                             <p className="text-xs text-gray-500">Cap: ${pago.capital.toLocaleString()} / Int: ${pago.interes.toLocaleString()}</p>
                                         </div>
                                         <p className="text-sm text-gray-600">{new Date(pago.fechaPago).toLocaleDateString()}</p>
@@ -138,24 +145,177 @@ const PagosModal = ({ prestamo, onClose, onPaymentSuccess }) => {
     )
 }
 
+// --- Formulario de Préstamos --- 
+const PrestamoForm = ({ socios, onSave, onCancel, error, prestamo, setPrestamo }) => {
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSocio, setSelectedSocio] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    if (prestamo) {
+      const socio = socios.find(s => s.id === prestamo.socioId);
+      setSelectedSocio(socio);
+      setSearchTerm(socio?.nombreCompleto || '');
+    }
+  }, [prestamo, socios]);
+
+  const filteredSocios = useMemo(() => {
+    if (!searchTerm) return [];
+    return socios.filter(s => s.nombreCompleto.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [searchTerm, socios]);
+
+  const handleFormChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const val = type === 'checkbox' ? checked : value;
+    setPrestamo(prev => {
+        const newState = { ...prev, [name]: val };
+        if(name === 'tipoPrestamo') {
+            newState.tipoInteres = 'Porcentual';
+            newState.esLibreAbono = false;
+            newState.interes = '';
+            newState.cuotas = '';
+        }
+        if(name === 'tipoInteres') newState.interes = '';
+        if(name === 'esLibreAbono' && checked) newState.cuotas = '';
+        return newState;
+    });
+  };
+
+  const handleSearchChange = (e) => {
+      setSearchTerm(e.target.value);
+      setSelectedSocio(null);
+      setPrestamo(prev => ({...prev, socioId: null}));
+      if(e.target.value) setIsSearching(true); else setIsSearching(false);
+  };
+
+  const selectSocio = (socio) => {
+      setSelectedSocio(socio);
+      setSearchTerm(socio.nombreCompleto);
+      setPrestamo(prev => ({...prev, socioId: socio.id}));
+      setIsSearching(false);
+  }
+
+  const handleSubmit = (e) => {
+      e.preventDefault();
+      if (!selectedSocio && !prestamo?.socioId) {
+          alert('Debe seleccionar un socio.');
+          return;
+      }
+      onSave(prestamo);
+  }
+
+  return (
+    <div className="bg-white p-8 rounded-xl shadow-lg mb-10">
+        <h3 className="text-xl font-bold text-gray-800 mb-6">Registrar Nuevo Préstamo</h3>
+        {error && <p className="text-red-500 bg-red-100 p-3 rounded-lg mb-4 text-sm">{`Error: ${error}`}</p>}
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            
+            {/* -- Columna 1: Socio y Monto -- */}
+            <div className="col-span-1 space-y-4 relative">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Socio</label>
+                    <input type="text" placeholder="Buscar socio..." value={searchTerm} onChange={handleSearchChange} className="w-full p-2 bg-gray-100 rounded-lg border" />
+                    {isSearching && filteredSocios.length > 0 && (
+                        <ul className="absolute z-10 w-full bg-white border rounded-lg mt-1 max-h-60 overflow-y-auto shadow-lg">
+                            {filteredSocios.map(s => <li key={s.id} onClick={() => selectSocio(s)} className="p-2 hover:bg-gray-100 cursor-pointer">{s.nombreCompleto}</li>)}
+                        </ul>
+                    )}
+                    {selectedSocio && <p className="text-green-600 font-semibold mt-2">Socio: {selectedSocio.nombreCompleto}</p>}
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Monto del Préstamo ($)</label>
+                    <input type="number" name="monto" value={prestamo?.monto || ''} onChange={handleFormChange} placeholder="Ej: 1,000,000" className="w-full p-2 bg-gray-100 rounded-lg border" required />
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Otorgamiento</label>
+                    <input type="date" name="fechaOtorgamiento" value={prestamo?.fechaOtorgamiento || ''} onChange={handleFormChange} className="w-full p-2 bg-gray-100 rounded-lg border" required/>
+                </div>
+            </div>
+
+            {/* -- Columna 2: Tipo de Préstamo y Opciones -- */}
+            <div className="col-span-1 space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Modalidad de Préstamo</label>
+                    <select name="tipoPrestamo" value={prestamo?.tipoPrestamo || 'Diario'} onChange={handleFormChange} className="w-full p-2 bg-gray-100 rounded-lg border">
+                        <option value="Diario">Diario</option>
+                        <option value="Semanal">Semanal</option>
+                        <option value="Quincenal">Quincenal</option>
+                        <option value="Mensual">Mensual</option>
+                        <option value="Otro">Otro (Libre Abono)</option>
+                    </select>
+                </div>
+                 {prestamo?.tipoPrestamo !== 'Otro' && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Número de Cuotas</label>
+                        <input type="number" name="cuotas" value={prestamo?.cuotas || ''} onChange={handleFormChange} placeholder="Ej: 24" className="w-full p-2 bg-gray-100 rounded-lg border" disabled={prestamo?.esLibreAbono}/>
+                    </div>
+                )}
+                <div className="flex items-center pt-2">
+                    <input type="checkbox" id="esLibreAbono" name="esLibreAbono" checked={prestamo?.esLibreAbono || false} onChange={handleFormChange} className="h-4 w-4 text-green-600 border-gray-300 rounded"/>
+                    <label htmlFor="esLibreAbono" className="ml-2 block text-sm text-gray-900">Permitir libre abono</label>
+                </div>
+            </div>
+
+            {/* -- Columna 3: Tipo de Interés -- */}
+             <div className="col-span-1 space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Interés</label>
+                    <select name="tipoInteres" value={prestamo?.tipoInteres || 'Porcentual'} onChange={handleFormChange} className="w-full p-2 bg-gray-100 rounded-lg border">
+                        <option value="Porcentual">Porcentual (%)</option>
+                        <option value="Fijo">Monto Fijo ($)</option>
+                        <option value="SinInteres">Sin Interés</option>
+                    </select>
+                </div>
+                {prestamo?.tipoInteres !== 'SinInteres' && (
+                    <div>
+                         <label className="block text-sm font-medium text-gray-700 mb-1">Valor del Interés</label>
+                         <input type="number" step="0.01" name="interes" value={prestamo?.interes || ''} onChange={handleFormChange} placeholder={prestamo?.tipoInteres === 'Porcentual' ? 'Ej: 3.5' : 'Ej: 50,000'} className="w-full p-2 bg-gray-100 rounded-lg border"/>
+                    </div>
+                )}
+            </div>
+
+            {/* -- Columna 4: Acciones -- */}
+            <div className="col-span-1 flex flex-col justify-between space-y-4">
+                <div className="space-y-2">
+                    <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow-md">Guardar Préstamo</button>
+                    <button type="button" onClick={onCancel} className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg">Cancelar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+  );
+}
+
+
 // --- Componente Principal del Módulo de Préstamos ---
 const PrestamosModule = () => {
   const [socios, setSocios] = useState([]);
   const [prestamos, setPrestamos] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedPrestamo, setSelectedPrestamo] = useState(null);
+  const [selectedPrestamoModal, setSelectedPrestamoModal] = useState(null);
+  
+  const initialFormState = {
+    monto: '',
+    interes: '',
+    cuotas: '',
+    socioId: null,
+    fechaOtorgamiento: new Date().toISOString().split('T')[0],
+    tipoPrestamo: 'Diario',
+    tipoInteres: 'Porcentual',
+    esLibreAbono: false,
+  };
 
-  const [formState, setFormState] = useState({ /* ... */ });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSocio, setSelectedSocio] = useState(null);
-  const [isSearching, setIsSearching] = useState(false);
+  const [formState, setFormState] = useState(initialFormState);
 
   const fetchData = async (isInitialLoad = false) => {
     if(isInitialLoad) setIsLoading(true);
+    setError(null);
     try {
       const [sociosRes, prestamosRes] = await Promise.all([ fetch('/api/socios'), fetch('/api/prestamos') ]);
-      if (!sociosRes.ok || !prestamosRes.ok) throw new Error('Error al cargar los datos.');
+      if (!sociosRes.ok) throw new Error('Error al cargar los socios.');
+      if (!prestamosRes.ok) throw new Error('Error al cargar los préstamos.');
       const sociosData = await sociosRes.json();
       const prestamosData = await prestamosRes.json();
       setSocios(sociosData);
@@ -169,32 +329,49 @@ const PrestamosModule = () => {
 
   useEffect(() => { fetchData(true); }, []);
 
-  // ... (todos los handlers y funciones de formulario permanecen igual)
-  const handleFormChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    const val = type === 'checkbox' ? checked : value;
+  const resetForm = () => {
+    setFormState(initialFormState);
     setError(null);
-    setFormState(prev => {
-        const newState = { ...prev, [name]: val };
-        if(name === 'tipoPrestamo') {
-            newState.tipoInteres = 'Porcentual';
-            newState.esLibreAbono = false;
-            newState.interes = '';
-            newState.cuotas = '';
-        }
-        if(name === 'tipoInteres') newState.interes = '';
-        if(name === 'esLibreAbono' && checked) newState.cuotas = '';
-        return newState;
-    });
   };
-  const handleSearchChange = (e) => { /* ... */ };
-  const selectSocio = (socio) => { /* ... */ };
-  const resetForm = () => { /* ... */ };
-  const handleSubmit = async (e) => { /* ... */ };
-  const handleDelete = async (prestamoId) => { /* ... */ };
+
+  const handleSave = async (prestamoData) => {
+      setError(null);
+      try {
+          const response = await fetch('/api/prestamos', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(prestamoData),
+          });
+          if (!response.ok) {
+              const errData = await response.json();
+              throw new Error(errData.error || 'Error al guardar el préstamo.');
+          }
+          resetForm();
+          await fetchData(); // Recargar todos los datos
+      } catch (err) {
+          setError(err.message);
+      }
+  };
+
+  const handleDelete = async (prestamoId) => {
+    if (window.confirm('¿Está seguro de que desea eliminar este préstamo? Esta acción también eliminará todos los pagos asociados.')) {
+      setError(null);
+      try {
+        const res = await fetch(`/api/prestamos/${prestamoId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || 'Error al eliminar el préstamo');
+        }
+        fetchData(); // Recargar
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+  };
+
   const formatInteres = (p) => {
-        if (p.tipoInteres === 'SinInteres') return "-";
-        if (p.tipoInteres === 'Fijo') return `$${p.interes.toFixed(2)}`;
+        if (p.tipoInteres === 'SinInteres' || !p.interes) return "-";
+        if (p.tipoInteres === 'Fijo') return `$${parseFloat(p.interes).toLocaleString('es-CO')}`;
         return `${p.interes}%`;
     }
 
@@ -203,13 +380,20 @@ const PrestamosModule = () => {
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-bold text-gray-800 mb-8">Gestión de Préstamos</h1>
         
-        {/* Formulario de registro de Préstamos (sin cambios) */}
-        <div className="bg-white p-8 rounded-xl shadow-lg mb-10"> ... </div>
+        <PrestamoForm 
+            socios={socios}
+            onSave={handleSave}
+            onCancel={resetForm}
+            error={error}
+            prestamo={formState}
+            setPrestamo={setFormState}
+        />
 
-        {selectedPrestamo && <PagosModal prestamo={selectedPrestamo} onClose={() => setSelectedPrestamo(null)} onPaymentSuccess={() => fetchData()} />}
+        {selectedPrestamoModal && <PagosModal prestamo={selectedPrestamoModal} onClose={() => setSelectedPrestamoModal(null)} onPaymentSuccess={() => fetchData()} />}
 
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
              <h3 className="text-xl font-bold text-gray-800 p-6">Historial de Préstamos</h3>
+             {error && !isLoading && <p className='px-6 pb-4 text-red-500'>{`Error: ${error}`}</p>}
              <div className="overflow-x-auto">
                  {isLoading ? <p className='p-6'>Cargando préstamos...</p> : 
                     <table className="min-w-full">
@@ -230,12 +414,12 @@ const PrestamosModule = () => {
                                     <td className="py-4 px-4 font-medium">{p.socio.nombreCompleto}</td>
                                     <td className="py-4 px-4"><span className={`px-3 py-1 text-xs font-bold rounded-full ${p.estado === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}`}>{p.estado}</span></td>
                                     <td className="py-4 px-4">{new Date(p.fechaOtorgamiento).toLocaleDateString()}</td>
-                                    <td className="py-4 px-4 text-right font-mono">${p.monto.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+                                    <td className="py-4 px-4 text-right font-mono">${parseFloat(p.monto).toLocaleString('es-CO', {minimumFractionDigits: 2})}</td>
                                     <td className="py-4 px-4 text-right font-semibold text-green-700">{formatInteres(p)}</td>
-                                    <td className="py-4 px-4 text-center">{p.cuotas || 'N/A'}</td>
-                                    <td className="py-4 px-4 space-x-2">
-                                        <button onClick={() => setSelectedPrestamo(p)} disabled={p.estado === 'Pagado'} className="py-1 px-3 rounded-full text-xs font-semibold text-blue-800 bg-blue-200 hover:bg-blue-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">Ver Pagos</button>
-                                        <button onClick={() => handleDelete(p.id)} disabled={p.estado === 'Pagado'} className="py-1 px-3 rounded-full text-xs font-semibold text-red-800 bg-red-200 hover:bg-red-300 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed">Eliminar</button>
+                                    <td className="py-4 px-4 text-center">{p.cuotas || 'Libre'}</td>
+                                    <td className="py-4 px-4 space-x-2 whitespace-nowrap">
+                                        <button onClick={() => setSelectedPrestamoModal(p)} className="py-1 px-3 rounded-full text-xs font-semibold text-blue-800 bg-blue-200 hover:bg-blue-300">Ver Pagos</button>
+                                        <button onClick={() => handleDelete(p.id)} className="py-1 px-3 rounded-full text-xs font-semibold text-red-800 bg-red-200 hover:bg-red-300">Eliminar</button>
                                     </td>
                                 </tr>
                             ))}
