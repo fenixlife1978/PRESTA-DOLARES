@@ -71,7 +71,7 @@ const SociosModule = () => {
   }, []);
 
   const handleSaveSocio = async (socioData) => {
-    setError(null); // Limpiar errores previos
+    setError(null);
     const url = editingSocio ? `/api/socios/${editingSocio.id}` : '/api/socios';
     const method = editingSocio ? 'PUT' : 'POST';
 
@@ -85,7 +85,7 @@ const SociosModule = () => {
         if (response.status === 409) {
             const data = await response.json();
             setError(data.error);
-            return; // No cerrar el formulario si hay un error de duplicado
+            return; 
         }
 
         if (!response.ok) {
@@ -94,24 +94,42 @@ const SociosModule = () => {
 
         setShowForm(false);
         setEditingSocio(null);
-        fetchSocios(); // Recargar la lista de socios
+        fetchSocios();
 
     } catch (err) {
         setError(err.message);
     }
   };
 
-  const handleDeleteSocio = (socioId) => {
-    // La funcionalidad de eliminar se implementará en un paso posterior
-    if (window.confirm('Funcionalidad de eliminar pendiente. ¿Desea continuar?')) {
-        console.log("Eliminar socio", socioId);
+  const handleDeleteSocio = async (socioId) => {
+    setError(null);
+    if (window.confirm('¿Está seguro de que desea eliminar este socio?')) {
+      try {
+        const response = await fetch(`/api/socios/${socioId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.status === 400) {
+            const data = await response.json();
+            setError(data.error);
+            return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Error al eliminar el socio');
+        }
+
+        fetchSocios(); // Recargar la lista de socios
+      } catch (err) {
+        setError(err.message);
+      }
     }
   };
 
   const handleCancel = () => {
       setShowForm(false);
       setEditingSocio(null);
-      setError(null); // Limpiar cualquier mensaje de error al cancelar
+      setError(null);
   }
 
   return (
@@ -126,7 +144,15 @@ const SociosModule = () => {
 
             {showForm && <SocioForm socio={editingSocio} onSave={handleSaveSocio} onCancel={handleCancel} errorMessage={error} />}
 
-            {error && !showForm && <p className="text-red-500 text-center mb-4">{error}</p>}
+            {error && !showForm && 
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                    <strong className="font-bold">Error: </strong>
+                    <span className="block sm:inline">{error}</span>
+                    <span className="absolute top-0 bottom-0 right-0 px-4 py-3" onClick={() => setError(null)}>
+                        <svg className="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
+                    </span>
+                </div>
+            }
 
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="overflow-x-auto">
