@@ -14,7 +14,7 @@ datasource db {
 model Socio {
   id             Int        @id @default(autoincrement())
   nombreCompleto String
-  cedula         String     @unique
+  cedula         String?
   telefono       String?
   direccion      String?
   prestamos      Prestamo[]
@@ -25,15 +25,21 @@ model Socio {
 }
 
 model Prestamo {
-  id        Int      @id @default(autoincrement())
-  monto     Float
-  interes   Float
-  cuotas    Int
-  fecha     DateTime @default(now())
-  estado    String   @default("activo")
-  socio     Socio    @relation(fields: [socioId], references: [id])
-  socioId   Int
-  pagos     Pago[]
+  id                Int       @id @default(autoincrement())
+  monto             Float     // Monto original del capital
+  interes           Float?    // Tasa de interés (% o fijo)
+  cuotas            Int?      
+  estado            String    @default("Activo") // "Activo" o "Pagado"
+  socio             Socio     @relation(fields: [socioId], references: [id])
+  socioId           Int
+  pagos             Pago[]
+
+  fechaOtorgamiento DateTime
+  tipoPrestamo      String    
+  tipoInteres       String    
+  esLibreAbono      Boolean   @default(false)
+  
+  saldoInteres      Float     @default(0) // Interés acumulado pendiente de pago
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -41,17 +47,17 @@ model Prestamo {
 
 model Pago {
   id            Int      @id @default(autoincrement())
-  monto         Float
-  capital       Float
-  interes       Float
+  monto         Float    // Monto total del pago
+  capital       Float    // Parte del pago que va a capital
+  interes       Float    // Parte del pago que va a interés
   fechaPago     DateTime @default(now())
-  numeroCuota   Int?
-  totalCuotas   Int?
   esLibreAbono  Boolean  @default(false)
   socio         Socio    @relation(fields: [socioId], references: [id])
   socioId       Int
   prestamo      Prestamo @relation(fields: [prestamoId], references: [id])
   prestamoId    Int
+  numeroCuota   Int?
+  totalCuotas   Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
