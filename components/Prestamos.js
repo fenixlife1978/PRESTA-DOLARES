@@ -1,55 +1,35 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 const PrestamosModule = () => {
-  // Estado para la lista de socios, el socio seleccionado y el término de búsqueda
-  const [socios, setSocios] = useState([]);
+  // Datos de ejemplo iniciales
+  const [socios] = useState([
+    { id: 1, nombreCompleto: 'Juan Pérez', cedula: '12345678' },
+    { id: 2, nombreCompleto: 'Ana Gómez', cedula: '87654321' },
+    { id: 3, nombreCompleto: 'Carlos Sánchez', cedula: '112233445' },
+  ]);
+  const [prestamos, setPrestamos] = useState([]);
+
+  // Estado para el formulario
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSocio, setSelectedSocio] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
-
-  // Estado para el formulario de préstamo
-  const [prestamo, setPrestamo] = useState({
-    fecha: new Date().toISOString().split('T')[0],
-    monto: '',
-    interes: '',
-    cuotas: '',
-    // Campos adicionales que podrías querer en el futuro
-  });
-
-  // Estado para la carga y errores
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState('');
-
-  // Cargar socios desde la API cuando el componente se monta
-  useEffect(() => {
-    const fetchSocios = async () => {
-      try {
-        const res = await fetch('/api/socios');
-        if (!res.ok) throw new Error('No se pudo obtener la lista de socios');
-        const data = await res.json();
-        setSocios(data);
-      } catch (err) {
-        setError(err.message);
-      }
-    };
-    fetchSocios();
-  }, []);
+  const [monto, setMonto] = useState('');
+  const [interes, setInteres] = useState('');
+  const [cuotas, setCuotas] = useState('');
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
-    setSelectedSocio(null); // Deseleccionar socio al cambiar la búsqueda
+    setSelectedSocio(null); // Deseleccionar al buscar de nuevo
     setIsSearching(true);
   };
 
   const selectSocio = (socio) => {
     setSelectedSocio(socio);
     setSearchTerm(socio.nombreCompleto);
-    setIsSearching(false); // Ocultar resultados al seleccionar
+    setIsSearching(false);
   };
 
-  // Filtrar socios basándose en el término de búsqueda
   const filteredSocios = searchTerm
     ? socios.filter(s =>
         s.nombreCompleto.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,122 +37,88 @@ const PrestamosModule = () => {
       )
     : [];
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setPrestamo(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!selectedSocio) {
-      setError('Por favor, busque y seleccione un socio válido.');
+      alert('Por favor, busque y seleccione un socio válido.');
       return;
     }
 
-    setLoading(true);
-    setError(null);
-    setSuccess('');
-
-    const prestamoData = {
+    const newPrestamo = {
+      id: prestamos.length + 1,
       socioId: selectedSocio.id,
-      socioNombre: selectedSocio.nombreCompleto, // Guardar el nombre para referencia rápida
-      ...prestamo,
-      monto: parseFloat(prestamo.monto),
-      interes: parseFloat(prestamo.interes),
-      cuotas: parseInt(prestamo.cuotas, 10),
-      estado: 'activo' // Estado inicial del préstamo
+      socioNombre: selectedSocio.nombreCompleto,
+      fecha: new Date().toISOString().split('T')[0],
+      monto: parseFloat(monto),
+      interes: parseFloat(interes),
+      cuotas: parseInt(cuotas, 10),
+      estado: 'activo'
     };
 
-    try {
-      const res = await fetch('/api/prestamos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(prestamoData),
-      });
+    setPrestamos([...prestamos, newPrestamo]);
+    alert('¡Préstamo registrado con éxito!');
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'No se pudo registrar el préstamo');
-      }
-
-      setSuccess('¡Préstamo registrado con éxito!');
-      // Resetear formulario
-      setSelectedSocio(null);
-      setSearchTerm('');
-      setPrestamo({
-        fecha: new Date().toISOString().split('T')[0],
-        monto: '',
-        interes: '',
-        cuotas: '',
-      });
-
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    // Limpiar formulario
+    setSearchTerm('');
+    setSelectedSocio(null);
+    setMonto('');
+    setInteres('');
+    setCuotas('');
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-4">Gestión de Préstamos</h2>
+    <div className="bg-gray-50 min-h-screen">
+      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-4xl font-bold text-gray-800 mb-8">Gestión de Préstamos</h1>
+        
+        <div className="bg-white p-8 rounded-xl shadow-lg">
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">Registrar Nuevo Préstamo</h2>
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Búsqueda de Socio */}
+                <div className="relative">
+                    <label className="block text-sm font-semibold text-gray-600 mb-2">Buscar Socio</label>
+                    <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    placeholder="Buscar por nombre o cédula..."
+                    className="w-full p-3 bg-gray-100 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+                    />
+                    {isSearching && filteredSocios.length > 0 && (
+                    <ul className="absolute border bg-white w-full mt-1 rounded-lg shadow-lg z-10">
+                        {filteredSocios.map(s => (
+                        <li key={s.id} onClick={() => selectSocio(s)} className="p-3 hover:bg-green-100 cursor-pointer">
+                            {s.nombreCompleto} ({s.cedula})
+                        </li>
+                        ))}
+                    </ul>
+                    )}
+                     {selectedSocio && <div className="p-2 mt-2 bg-green-100 text-green-700 rounded-lg">Socio seleccionado: <strong>{selectedSocio.nombreCompleto}</strong></div>}
+                </div>
 
-      {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">Error: {error}</p>}
-      {success && <p className="text-green-500 bg-green-100 p-3 rounded mb-4">{success}</p>}
+                {/* Campos del Préstamo */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label htmlFor="monto" className="block text-sm font-semibold text-gray-600 mb-2">Monto del Préstamo</label>
+                        <input type="number" id="monto" value={monto} onChange={(e) => setMonto(e.target.value)} placeholder="$1000" className="w-full p-3 bg-gray-100 rounded-lg border border-gray-200" required />
+                    </div>
+                    <div>
+                        <label htmlFor="interes" className="block text-sm font-semibold text-gray-600 mb-2">Tasa de Interés (%)</label>
+                        <input type="number" id="interes" value={interes} onChange={(e) => setInteres(e.target.value)} placeholder="5%" className="w-full p-3 bg-gray-100 rounded-lg border border-gray-200" required />
+                    </div>
+                    <div>
+                        <label htmlFor="cuotas" className="block text-sm font-semibold text-gray-600 mb-2">Plazo (en cuotas)</label>
+                        <input type="number" id="cuotas" value={cuotas} onChange={(e) => setCuotas(e.target.value)} placeholder="12" className="w-full p-3 bg-gray-100 rounded-lg border border-gray-200" required />
+                    </div>
+                </div>
 
-      <div className="p-4 border rounded shadow-sm bg-white">
-        <h3 className="text-xl font-semibold mb-4">Nuevo Préstamo</h3>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Búsqueda de Socio */}
-          <div className="relative">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="socio-search">
-              Buscar Socio por Nombre o Cédula
-            </label>
-            <input
-              id="socio-search"
-              type="text"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              placeholder="Empezar a escribir para buscar..."
-              className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              autoComplete="off"
-            />
-            {isSearching && filteredSocios.length > 0 && (
-              <ul className="absolute border bg-white w-full mt-1 rounded-md shadow-lg z-10">
-                {filteredSocios.map(s => (
-                  <li key={s.id} onClick={() => selectSocio(s)} className="p-3 hover:bg-gray-200 cursor-pointer">
-                    {s.nombreCompleto} ({s.cedula})
-                  </li>
-                ))}
-              </ul>
-            )}
-             {selectedSocio && <div className="p-2 mt-2 bg-green-100 text-green-700 rounded-md">Socio seleccionado: <strong>{selectedSocio.nombreCompleto}</strong></div>}
-          </div>
-
-          {/* Campos del Préstamo */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-             <div>
-                <label htmlFor="fecha" className="block text-sm font-medium text-gray-700">Fecha</label>
-                <input type="date" name="fecha" id="fecha" value={prestamo.fecha} onChange={handleInputChange} className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
-            </div>
-            <div>
-                <label htmlFor="monto" className="block text-sm font-medium text-gray-700">Monto</label>
-                <input type="number" name="monto" id="monto" value={prestamo.monto} onChange={handleInputChange} placeholder='Ej: 1000' className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
-            </div>
-            <div>
-                <label htmlFor="interes" className="block text-sm font-medium text-gray-700">Interés (%)</label>
-                <input type="number" name="interes" id="interes" value={prestamo.interes} onChange={handleInputChange} placeholder='Ej: 5' className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
-            </div>
-            <div>
-                <label htmlFor="cuotas" className="block text-sm font-medium text-gray-700">Cuotas</label>
-                <input type="number" name="cuotas" id="cuotas" value={prestamo.cuotas} onChange={handleInputChange} placeholder='Ej: 12' className="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm" required />
-            </div>
-          </div>
-          
-          <button type="submit" disabled={loading} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:bg-blue-300">
-            {loading ? 'Registrando...' : 'Registrar Préstamo'}
-          </button>
-        </form>
+                <div className="pt-4 flex justify-end">
+                    <button type="submit" className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transform hover:scale-105 transition-all duration-300">
+                        Registrar Préstamo
+                    </button>
+                </div>
+            </form>
+        </div>
       </div>
     </div>
   );

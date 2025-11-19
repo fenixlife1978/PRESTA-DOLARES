@@ -1,17 +1,15 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-// Componente para el formulario de Socio (reutilizable para añadir/editar)
-const SocioForm = ({ socio, onSave, onCancel, loading }) => {
-  const [formData, setFormData] = useState({ nombreCompleto: '', cedula: '', telefono: '', direccion: '' });
+const initialSocios = [
+  { id: 1, nombreCompleto: 'Juan Pérez', cedula: '123456789', telefono: '555-1234', direccion: 'Calle Falsa 123' },
+  { id: 2, nombreCompleto: 'Ana Gómez', cedula: '987654321', telefono: '555-5678', direccion: 'Avenida Siempreviva 742' },
+  { id: 3, nombreCompleto: 'Carlos Sánchez', cedula: '112233445', telefono: '555-8765', direccion: 'Plaza Central 45' },
+];
 
-  useEffect(() => {
-    if (socio) {
-      setFormData(socio);
-    } else {
-      setFormData({ nombreCompleto: '', cedula: '', telefono: '', direccion: '' });
-    }
-  }, [socio]);
+// El formulario emergente (modal) con el estilo de Starbucks
+const SocioForm = ({ socio, onSave, onCancel }) => {
+  const [formData, setFormData] = useState(socio || { nombreCompleto: '', cedula: '', telefono: '', direccion: '' });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -24,22 +22,20 @@ const SocioForm = ({ socio, onSave, onCancel, loading }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-        <form onSubmit={handleSubmit}>
-          <h3 className="text-lg font-semibold mb-4">{socio ? 'Modificar Socio' : 'Agregar Nuevo Socio'}</h3>
-          <div className="space-y-4">
-            <input type="text" name="nombreCompleto" value={formData.nombreCompleto} onChange={handleChange} placeholder="Nombre y Apellido" className="w-full p-2 border rounded" required />
-            <input type="text" name="cedula" value={formData.cedula} onChange={handleChange} placeholder="Cédula" className="w-full p-2 border rounded" required />
-            <input type="text" name="telefono" value={formData.telefono} onChange={handleChange} placeholder="Teléfono (opcional)" className="w-full p-2 border rounded" />
-            <input type="text" name="direccion" value={formData.direccion} onChange={handleChange} placeholder="Dirección (opcional)" className="w-full p-2 border rounded" />
-          </div>
-          <div className="flex justify-end mt-6">
-            <button type="button" onClick={onCancel} className="bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded mr-2" disabled={loading}>
+    <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
+      <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all">
+        <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">{socio ? 'Modificar Socio' : 'Agregar Nuevo Socio'}</h3>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <input type="text" name="nombreCompleto" value={formData.nombreCompleto} onChange={handleChange} placeholder="Nombre y Apellido" className="w-full p-3 bg-gray-100 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500" required />
+          <input type="text" name="cedula" value={formData.cedula} onChange={handleChange} placeholder="Cédula" className="w-full p-3 bg-gray-100 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500" required />
+          <input type="text" name="telefono" value={formData.telefono} onChange={handleChange} placeholder="Teléfono (opcional)" className="w-full p-3 bg-gray-100 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500" />
+          <input type="text" name="direccion" value={formData.direccion} onChange={handleChange} placeholder="Dirección (opcional)" className="w-full p-3 bg-gray-100 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500" />
+          <div className="flex justify-end pt-4 space-x-4">
+            <button type="button" onClick={onCancel} className="px-6 py-2 rounded-full font-semibold text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors duration-300">
               Cancelar
             </button>
-            <button type="submit" className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded" disabled={loading}>
-              {loading ? 'Guardando...' : 'Guardar'}
+            <button type="submit" className="px-6 py-2 rounded-full font-semibold text-white bg-green-600 hover:bg-green-700 transition-colors duration-300">
+              Guardar
             </button>
           </div>
         </form>
@@ -48,129 +44,77 @@ const SocioForm = ({ socio, onSave, onCancel, loading }) => {
   );
 };
 
-// Componente principal del módulo de Socios
+// El componente principal con el estilo de Starbucks
 const SociosModule = () => {
-  const [socios, setSocios] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [socios, setSocios] = useState(initialSocios);
   const [showForm, setShowForm] = useState(false);
   const [editingSocio, setEditingSocio] = useState(null);
 
-  const fetchSocios = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('/api/socios');
-      if (!res.ok) throw new Error('Error al cargar los socios');
-      const data = await res.json();
-      setSocios(data);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  const handleSaveSocio = (socioData) => {
+    if (editingSocio) {
+      // Modificar socio existente
+      setSocios(socios.map(s => s.id === editingSocio.id ? { ...s, ...socioData } : s));
+    } else {
+      // Agregar nuevo socio
+      const newId = socios.length > 0 ? Math.max(...socios.map(s => s.id)) + 1 : 1;
+      setSocios([...socios, { id: newId, ...socioData }]);
     }
+    setShowForm(false);
+    setEditingSocio(null);
   };
 
-  useEffect(() => {
-    fetchSocios();
-  }, []);
-
-  const handleSaveSocio = async (socioData) => {
-    const url = editingSocio ? `/api/socios/${editingSocio.id}` : '/api/socios';
-    const method = editingSocio ? 'PUT' : 'POST';
-
-    try {
-      setLoading(true);
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(socioData),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'No se pudo guardar el socio');
-      }
-      
-      setShowForm(false);
-      setEditingSocio(null);
-      await fetchSocios(); // Recargar la lista de socios
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteSocio = async (socioId) => {
+  const handleDeleteSocio = (socioId) => {
     if (window.confirm('¿Está seguro de que desea eliminar este socio?')) {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/socios/${socioId}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('No se pudo eliminar el socio');
-        await fetchSocios(); // Recargar la lista
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
+      setSocios(socios.filter(s => s.id !== socioId));
     }
   };
 
   return (
-    <div className="container mx-auto p-4">
-      <h2 className="text-2xl font-bold mb-4">Gestión de Socios</h2>
+    <div className="bg-gray-50 min-h-screen">
+        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-4xl font-bold text-gray-800">Gestión de Socios</h1>
+                <button onClick={() => { setEditingSocio(null); setShowForm(true); }} className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transform hover:scale-105 transition-all duration-300">
+                    + Agregar Socio
+                </button>
+            </div>
 
-      {error && <p className="text-red-500 bg-red-100 p-3 rounded mb-4">Error: {error}</p>}
+            {showForm && <SocioForm socio={editingSocio} onSave={handleSaveSocio} onCancel={() => { setShowForm(false); setEditingSocio(null); }} />}
 
-      <button onClick={() => { setEditingSocio(null); setShowForm(true); }} className="mb-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
-        Agregar Nuevo Socio
-      </button>
-
-      {showForm && (
-        <SocioForm
-          socio={editingSocio}
-          onSave={handleSaveSocio}
-          onCancel={() => { setShowForm(false); setEditingSocio(null); }}
-          loading={loading}
-        />
-      )}
-
-      <div className="overflow-x-auto bg-white rounded shadow">
-        <table className="min-w-full">
-          <thead className="bg-gray-200">
-            <tr>
-              <th className="py-3 px-4 text-left">Nombre y Apellido</th>
-              <th className="py-3 px-4 text-left">Cédula</th>
-              <th className="py-3 px-4 text-left">Teléfono</th>
-              <th className="py-3 px-4 text-left">Dirección</th>
-              <th className="py-3 px-4 text-left">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan="5" className="p-4 text-center">Cargando...</td></tr>
-            ) : (
-              socios.map((s) => (
-                <tr key={s.id} className="border-b hover:bg-gray-50">
-                  <td className="py-2 px-4">{s.nombreCompleto}</td>
-                  <td className="py-2 px-4">{s.cedula}</td>
-                  <td className="py-2 px-4">{s.telefono}</td>
-                  <td className="py-2 px-4">{s.direccion}</td>
-                  <td className="py-2 px-4">
-                    <button onClick={() => { setEditingSocio(s); setShowForm(true); }} className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-1 px-2 rounded mr-2">
-                      Modificar
-                    </button>
-                    <button onClick={() => handleDeleteSocio(s.id)} className="bg-red-500 hover:bg-red-600 text-white font-bold py-1 px-2 rounded">
-                      Eliminar
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                    <thead className="bg-gray-100">
+                        <tr>
+                        <th className="py-4 px-6 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">Nombre y Apellido</th>
+                        <th className="py-4 px-6 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">Cédula</th>
+                        <th className="py-4 px-6 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">Teléfono</th>
+                        <th className="py-4 px-6 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">Dirección</th>
+                        <th className="py-4 px-6 text-left text-sm font-semibold text-gray-600 uppercase tracking-wider">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                        {socios.map((s) => (
+                        <tr key={s.id} className="hover:bg-green-50 transition-colors duration-200">
+                            <td className="py-4 px-6 whitespace-nowrap">{s.nombreCompleto}</td>
+                            <td className="py-4 px-6 whitespace-nowrap">{s.cedula}</td>
+                            <td className="py-4 px-6 whitespace-nowrap">{s.telefono}</td>
+                            <td className="py-4 px-6 whitespace-nowrap">{s.direccion}</td>
+                            <td className="py-4 px-6 whitespace-nowrap space-x-2">
+                                <button onClick={() => { setEditingSocio(s); setShowForm(true); }} className="py-1 px-3 rounded-full text-xs font-semibold text-yellow-800 bg-yellow-200 hover:bg-yellow-300">
+                                Modificar
+                                </button>
+                                <button onClick={() => handleDeleteSocio(s.id)} className="py-1 px-3 rounded-full text-xs font-semibold text-red-800 bg-red-200 hover:bg-red-300">
+                                Eliminar
+                                </button>
+                            </td>
+                        </tr>
+                        ))}
+                    </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
   );
 };
