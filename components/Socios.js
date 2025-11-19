@@ -1,15 +1,17 @@
 
-import { useState } from 'react';
-
-const initialSocios = [
-  { id: 1, nombreCompleto: 'Juan Pérez', cedula: '123456789', telefono: '555-1234', direccion: 'Calle Falsa 123' },
-  { id: 2, nombreCompleto: 'Ana Gómez', cedula: '987654321', telefono: '555-5678', direccion: 'Avenida Siempreviva 742' },
-  { id: 3, nombreCompleto: 'Carlos Sánchez', cedula: '112233445', telefono: '555-8765', direccion: 'Plaza Central 45' },
-];
+import { useState, useEffect } from 'react';
 
 // El formulario emergente (modal) con el estilo de Starbucks
-const SocioForm = ({ socio, onSave, onCancel }) => {
+const SocioForm = ({ socio, onSave, onCancel, errorMessage }) => {
   const [formData, setFormData] = useState(socio || { nombreCompleto: '', cedula: '', telefono: '', direccion: '' });
+
+  useEffect(() => {
+    if (socio) {
+      setFormData(socio);
+    } else {
+      setFormData({ nombreCompleto: '', cedula: '', telefono: '', direccion: '' });
+    }
+  }, [socio]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -25,6 +27,7 @@ const SocioForm = ({ socio, onSave, onCancel }) => {
     <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
       <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md transform transition-all">
         <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">{socio ? 'Modificar Socio' : 'Agregar Nuevo Socio'}</h3>
+        {errorMessage && <p className="text-red-500 text-center mb-4">{errorMessage}</p>}
         <form onSubmit={handleSubmit} className="space-y-6">
           <input type="text" name="nombreCompleto" value={formData.nombreCompleto} onChange={handleChange} placeholder="Nombre y Apellido" className="w-full p-3 bg-gray-100 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500" required />
           <input type="text" name="cedula" value={formData.cedula} onChange={handleChange} placeholder="Cédula" className="w-full p-3 bg-gray-100 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-500" required />
@@ -44,30 +47,72 @@ const SocioForm = ({ socio, onSave, onCancel }) => {
   );
 };
 
+
 // El componente principal con el estilo de Starbucks
 const SociosModule = () => {
-  const [socios, setSocios] = useState(initialSocios);
+  const [socios, setSocios] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingSocio, setEditingSocio] = useState(null);
+  const [error, setError] = useState(null);
 
-  const handleSaveSocio = (socioData) => {
-    if (editingSocio) {
-      // Modificar socio existente
-      setSocios(socios.map(s => s.id === editingSocio.id ? { ...s, ...socioData } : s));
-    } else {
-      // Agregar nuevo socio
-      const newId = socios.length > 0 ? Math.max(...socios.map(s => s.id)) + 1 : 1;
-      setSocios([...socios, { id: newId, ...socioData }]);
+  const fetchSocios = async () => {
+    try {
+        const res = await fetch('/api/socios');
+        if (!res.ok) throw new Error('Failed to fetch');
+        const data = await res.json();
+        setSocios(data);
+    } catch (err) {
+        setError('No se pudieron cargar los socios.');
     }
-    setShowForm(false);
-    setEditingSocio(null);
+  };
+
+  useEffect(() => {
+    fetchSocios();
+  }, []);
+
+  const handleSaveSocio = async (socioData) => {
+    setError(null); // Limpiar errores previos
+    const url = editingSocio ? `/api/socios/${editingSocio.id}` : '/api/socios';
+    const method = editingSocio ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(socioData),
+        });
+
+        if (response.status === 409) {
+            const data = await response.json();
+            setError(data.error);
+            return; // No cerrar el formulario si hay un error de duplicado
+        }
+
+        if (!response.ok) {
+            throw new Error('Error al guardar el socio');
+        }
+
+        setShowForm(false);
+        setEditingSocio(null);
+        fetchSocios(); // Recargar la lista de socios
+
+    } catch (err) {
+        setError(err.message);
+    }
   };
 
   const handleDeleteSocio = (socioId) => {
-    if (window.confirm('¿Está seguro de que desea eliminar este socio?')) {
-      setSocios(socios.filter(s => s.id !== socioId));
+    // La funcionalidad de eliminar se implementará en un paso posterior
+    if (window.confirm('Funcionalidad de eliminar pendiente. ¿Desea continuar?')) {
+        console.log("Eliminar socio", socioId);
     }
   };
+
+  const handleCancel = () => {
+      setShowForm(false);
+      setEditingSocio(null);
+      setError(null); // Limpiar cualquier mensaje de error al cancelar
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -79,7 +124,9 @@ const SociosModule = () => {
                 </button>
             </div>
 
-            {showForm && <SocioForm socio={editingSocio} onSave={handleSaveSocio} onCancel={() => { setShowForm(false); setEditingSocio(null); }} />}
+            {showForm && <SocioForm socio={editingSocio} onSave={handleSaveSocio} onCancel={handleCancel} errorMessage={error} />}
+
+            {error && !showForm && <p className="text-red-500 text-center mb-4">{error}</p>}
 
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="overflow-x-auto">

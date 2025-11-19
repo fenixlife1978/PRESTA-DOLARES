@@ -1,0 +1,58 @@
+
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Socio {
+  id             Int        @id @default(autoincrement())
+  nombreCompleto String
+  cedula         String     @unique
+  telefono       String?
+  direccion      String?
+  prestamos      Prestamo[]
+  pagos          Pago[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Prestamo {
+  id        Int      @id @default(autoincrement())
+  monto     Float
+  interes   Float
+  cuotas    Int
+  fecha     DateTime @default(now())
+  estado    String   @default("activo")
+  socio     Socio    @relation(fields: [socioId], references: [id])
+  socioId   Int
+  pagos     Pago[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Pago {
+  id            Int      @id @default(autoincrement())
+  monto         Float
+  capital       Float
+  interes       Float
+  fechaPago     DateTime @default(now())
+  numeroCuota   Int?
+  totalCuotas   Int?
+  esLibreAbono  Boolean  @default(false)
+  socio         Socio    @relation(fields: [socioId], references: [id])
+  socioId       Int
+  prestamo      Prestamo @relation(fields: [prestamoId], references: [id])
+  prestamoId    Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
