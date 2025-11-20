@@ -1,4 +1,3 @@
-
 import Link from 'next/link';
 
 const Layout = ({ children }) => {
@@ -17,6 +16,7 @@ const Layout = ({ children }) => {
                 <Link href="/" legacyBehavior><a className="text-gray-300 hover:bg-starbucks-green hover:text-white px-3 py-2 rounded-md text-sm font-medium">Dashboard</a></Link>
                 <Link href="/admin?tab=socios" legacyBehavior><a className="text-gray-300 hover:bg-starbucks-green hover:text-white px-3 py-2 rounded-md text-sm font-medium">Socios</a></Link>
                 <Link href="/admin?tab=prestamos" legacyBehavior><a className="text-gray-300 hover:bg-starbucks-green hover:text-white px-3 py-2 rounded-md text-sm font-medium">Préstamos</a></Link>
+                <Link href="/reportes" legacyBehavior><a className="text-gray-300 hover:bg-starbucks-green hover:text-white px-3 py-2 rounded-md text-sm font-medium">Reporte de Cuotas</a></Link>
                 <Link href="/admin?tab=pagos" legacyBehavior><a className="text-gray-300 hover:bg-starbucks-green hover:text-white px-3 py-2 rounded-md text-sm font-medium">Pagos</a></Link>
                 <Link href="/admin?tab=consultas" legacyBehavior><a className="text-gray-300 hover:bg-starbucks-green hover:text-white px-3 py-2 rounded-md text-sm font-medium">Consultas</a></Link>
                 <Link href="/admin?tab=configuraciones" legacyBehavior><a className="text-gray-300 hover:bg-starbucks-green hover:text-white px-3 py-2 rounded-md text-sm font-medium">Configuraciones</a></Link>

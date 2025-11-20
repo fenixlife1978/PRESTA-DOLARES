@@ -1,4 +1,3 @@
-
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
@@ -25,39 +24,66 @@ model Socio {
 }
 
 model Prestamo {
-  id                Int       @id @default(autoincrement())
-  monto             Float     // Monto original del capital
-  interes           Float?    // Tasa de interés (% o fijo)
-  cuotas            Int?      
-  estado            String    @default("Activo") // "Activo" o "Pagado"
-  socio             Socio     @relation(fields: [socioId], references: [id])
-  socioId           Int
-  pagos             Pago[]
-
-  fechaOtorgamiento DateTime
-  tipoPrestamo      String    
-  tipoInteres       String    
-  esLibreAbono      Boolean   @default(false)
+  id                Int      @id @default(autoincrement())
+  monto             Float
+  interes           Float?
+  cuotas            Int?
+  estado            String   @default("Activo")
   
-  saldoInteres      Float     @default(0) // Interés acumulado pendiente de pago
+  // Relaciones
+  socio             Socio    @relation(fields: [socioId], references: [id])
+  socioId           Int
+  
+  pagos             Pago[]
+  planDePagos       Cuota[]  // Esta es la relación que tu código busca
+
+  // Campos de configuración del préstamo
+  fechaOtorgamiento DateTime
+  tipoPrestamo      String
+  tipoInteres       String
+  esLibreAbono      Boolean  @default(false)
+  
+  saldoInteres      Float    @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Pago {
-  id            Int      @id @default(autoincrement())
-  monto         Float    // Monto total del pago
-  capital       Float    // Parte del pago que va a capital
-  interes       Float    // Parte del pago que va a interés
-  fechaPago     DateTime @default(now())
-  esLibreAbono  Boolean  @default(false)
-  socio         Socio    @relation(fields: [socioId], references: [id])
-  socioId       Int
-  prestamo      Prestamo @relation(fields: [prestamoId], references: [id])
-  prestamoId    Int
-  numeroCuota   Int?
-  totalCuotas   Int?
+  id           Int      @id @default(autoincrement())
+  monto        Float
+  capital      Float
+  interes      Float
+  fechaPago    DateTime @default(now())
+  esLibreAbono Boolean  @default(false)
+  
+  socio        Socio    @relation(fields: [socioId], references: [id])
+  socioId      Int
+  
+  // onDelete: Cascade permite borrar el préstamo y que se borren sus pagos automáticamente
+  prestamo     Prestamo @relation(fields: [prestamoId], references: [id], onDelete: Cascade)
+  prestamoId   Int
+  
+  numeroCuota  Int?
+  totalCuotas  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Cuota {
+  id               Int      @id @default(autoincrement())
+  
+  // onDelete: Cascade permite borrar el préstamo y que se borre el plan de pagos
+  prestamo         Prestamo @relation(fields: [prestamoId], references: [id], onDelete: Cascade)
+  prestamoId       Int
+  
+  numeroCuota      Int
+  monto            Float    // Monto total de la cuota (capital + interés)
+  capital          Float
+  interes          Float
+  fechaVencimiento DateTime
+  estado           String   @default("Pendiente") // Pendiente, Pagada, Atrasada
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

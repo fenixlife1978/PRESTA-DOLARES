@@ -1,11 +1,12 @@
-
 import prisma from '../../../lib/prisma';
 
 export default async function handle(req, res) {
   if (req.method === 'GET') {
     try {
-      // Calcular agregaciones de préstamos y pagos en paralelo
-      const [totalPrestado, pagosAgregados, numeroSocios, numeroPrestamos] = await prisma.$transaction([
+      // Usamos una sintaxis más robusta para asegurar que los valores sean siempre números,
+      // incluso si la tabla está vacía.
+
+      const [totalPrestadoResult, pagosAgregadosResult, numeroSocios, numeroPrestamos] = await prisma.$transaction([
         prisma.prestamo.aggregate({
           _sum: {
             monto: true,
@@ -22,20 +23,32 @@ export default async function handle(req, res) {
         prisma.prestamo.count(),
       ]);
 
+      // Aseguramos que si no hay datos, el valor sea 0
+      const totalPrestado = totalPrestadoResult?._sum?.monto ?? 0;
+      const totalRecuperado = pagosAgregadosResult?._sum?.monto ?? 0;
+      const capitalRecuperado = pagosAgregadosResult?._sum?.capital ?? 0;
+      const interesGanado = pagosAgregadosResult?._sum?.interes ?? 0;
+
       const stats = {
-        totalPrestado: totalPrestado._sum.monto || 0,
-        totalRecuperado: pagosAgregados._sum.monto || 0,
-        capitalRecuperado: pagosAgregados._sum.capital || 0,
-        interesGanado: pagosAgregados._sum.interes || 0,
-        numeroSocios: numeroSocios || 0,
-        numeroPrestamos: numeroPrestamos || 0,
+        totalPrestado,
+        totalRecuperado,
+        capitalRecuperado,
+        interesGanado,
+        numeroSocios: numeroSocios ?? 0,
+        numeroPrestamos: numeroPrestamos ?? 0,
+        // Agregamos un campo de Saldo Pendiente
+        saldoPendiente: totalPrestado - capitalRecuperado,
       };
 
       res.status(200).json(stats);
 
     } catch (error) {
       console.error("Error al calcular las estadísticas del dashboard:", error);
-      res.status(500).json({ error: 'Error al obtener las estadísticas' });
+      // Devolvemos un 500 con un mensaje más detallado para el frontend
+      res.status(500).json({ 
+          error: 'Error al obtener las estadísticas del Dashboard.',
+          details: error.message 
+      });
     }
   } else {
     res.setHeader('Allow', ['GET']);
